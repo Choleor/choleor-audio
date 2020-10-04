@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import dot
 from numpy.linalg import norm
-from collections import Counter
+from collections import Counter #각 라벨마다 들어간 군집 개수 셀 때 이용
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -9,7 +9,7 @@ import librosa.display,librosa
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
-import time #코드 동작 소요시간(사용 안해도 됨)
+import time #코드 동작 소요시간 확인할 때
 
 def getFileList(filePath):
     fileList = []
@@ -79,37 +79,13 @@ def getFeatureFile(filePath, file):
 
     return data
 
-"""
-메소드 사용 예시
-fileList=getFileList(파일 디렉토리)
-new_data=getFeature(파일 디렉토리,fileList)
-"""
-# Convert DataFrame to CSV
-
-#mode=write
-new_data.to_csv("music_input_feature_mfcc.csv", mode='w')
-
-#append single file
-new_data.to_csv('music_input_feature_mfcc.csv',index=False, mode='a',header=False)
-
-# Convert csv to DataFrame
-feat_data=pd.read_csv("music_input_feature_mfcc.csv")
-
-#KMeans Clustering
-def execute_kmeans(data):
-    n_clusters=10
-    model = KMeans(n_clusters)
-    model.fit(data)
-
-    data_labels=model.predict(data)
-    return data_labels
-
-def check_perform_kmeans(music_data):
+#check_perform_kmeans: cluster 수별 kmeans 성능 확인
+def check_perform_kmeans(data):
     inertia = []
     K = range(1,16)
     for k in K:
-        kmeanModel = KMeans(n_clusters=k).fit(music_data)
-        kmeanModel.fit(music_data)
+        kmeanModel = KMeans(n_clusters=k).fit(data)
+        kmeanModel.fit(data)
         inertia.append(kmeanModel.inertia_)
     #print (model.inertia_)
 
@@ -120,28 +96,16 @@ def check_perform_kmeans(music_data):
     plt.ylabel('inertia')
     plt.show()
 
-#테스트 코드
-execute_kmeans(feat_data)
-print(len(execute_kmeans(feat_data)),len(fileList))
-kmeans_labels = pd.DataFrame( { "fileName": fileList,"Labels": execute_kmeans(feat_data) } )
-
-#cluster filtering
-filtering=(kmeans_labels['Labels']==1)
-filter_kmeans_labels=kmeans_labels[filtering]
-
-#mfcc filtering
-filter_feat_data=feat_data.iloc[filter_kmeans_labels.index[filter_kmeans_labels['fileName']==filter_kmeans_labels['fileName'].values[0:]]]
-
 #calculate similarity
 def cos_sim(A, B):
     return dot(A, B) / (norm(A) * norm(B))
 
-def cluster_sim(idx, num):
-    seg_sim_dic = {}
+def cluster_sim(labels,data,idx,num):
+    sim_dic = {}
 
-    for i in range(len(filter_feat_data.values)):
-        seg1 = filter_feat_data.values[idx]  # 비교할 audio_slice
-        seg2 = filter_feat_data.values[i]  # 같은 cluster에 있는 audio_slice들
+    for i in range(len(data.values)):
+        seg1 = data.values[idx]  # 비교할 audio_slice
+        seg2 = data.values[i]  # 같은 cluster에 있는 audio_slice 여러개
 
         seg1_2d = seg1.reshape(-1, 1)  # 차원 축소
         seg2_2d = seg2.reshape(-1, 1)
@@ -150,13 +114,46 @@ def cluster_sim(idx, num):
         sim = sim * 100  # 퍼센트(%) 단위로 나타냄
         sim = round(sim, 2)  # 소수 둘째자리에서 반올림
 
-        audio_slice_id = filter_kmeans_labels['fileName'].values[i]
+        audio_slice_id = labels['fileName'].values[i]
 
-        seg_sim_dic[audio_slice_id] = sim
+        sim_dic[audio_slice_id] = sim
 
-    final_dic = sorted(seg_sim_dic.items(), reverse=True, key=lambda x: x[1])  # 내림차순 정렬
+    final_dic = sorted(sim_dic.items(), reverse=True, key=lambda x: x[1])  # 내림차순 정렬
 
     return final_dic[1:num]
 
 if __name__ == '__main__':
-    cluster_sim(0, 6)
+    # ""안에 파일 디렉토리 입력
+    fileList = getFileList("C:/")
+    data = getFeature("C:/", fileList)
+    # Convert DataFrame to CSV
+    data.to_csv("music_feature.csv", mode='w')
+
+    # 여기서부터 유저가 선택한 노래 들어올 때 실행
+    # Convert DataFrame to CSV and append single file
+    new_data = getFeatureFile("C:/", "유저 파일이름")
+    new_data.to_csv('music_feature.csv', mode='a', header=False)
+
+    # Load music_feature.csv file
+    feat_data = pd.read_csv("music_feature.csv", index_col=[0])
+
+    # KMeans Clustering
+    n_clusters = 10
+    model = KMeans(n_clusters)
+    model.fit(feat_data)
+    data_labels = model.predict(feat_data)
+
+    # cluster labeling 시각화
+    fileList.append("유저 파일이름")
+    print(len(data_labels), len(fileList))
+    kmeans_labels = pd.DataFrame({"fileName": fileList, "Labels": data_labels})
+    # cluster label 번호별로 필터링 하여 시각화
+    filtering = (kmeans_labels['Labels'] == 1) #숫자 바꿔주기
+    filter_kmeans_labels = kmeans_labels[filtering]
+
+    # cluster label 번호별로 music feature csv파일 필터링
+    filter_feat = feat_data.iloc[
+        filter_kmeans_labels.index[filter_kmeans_labels['fileName'] == filter_kmeans_labels['fileName'].values[0:]]
+    ]
+
+    print(cluster_sim(filter_kmeans_labels,filter_feat,0, 6))
