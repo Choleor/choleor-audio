@@ -116,14 +116,6 @@ def cluster_sim(data,idx,n):
     return final_dic[1:n]
 
 def similiarity(file):# 유사도 비교를 원하는 파일명(file)
-    """
-    # DB에 있는 모든 노래 feature구할 때 한번만 돌리기
-    fileList = getFileList("C:/") #parameter:노래 디렉토리
-    data = getFeatureAll("C:/", fileList)  #parameter:노래 디렉토리
-
-    data.to_csv("music_feature.csv", mode='w') # Convert DataFrame to CSV
-    """
-
     # 여기서부터 유저가 선택한 노래의 구간이 들어올 때 실행
     # Convert DataFrame to CSV and append single file
     new_data = getFeatureFile("C:/ffmpeg/bin/input/", file)
@@ -159,5 +151,13 @@ def similiarity(file):# 유사도 비교를 원하는 파일명(file)
     #결과 예시: [('4-TbQnONe_w_16.wav', 95.48), ('4-TbQnONe_w_19.wav', 95.42), ('4-TbQnONe_w_17.wav', 95.27),...]
 
 if __name__ == '__main__':
+    """
+    # DB에 있는 모든 노래 feature구할 때 한번만 돌리기
+    fileList = getFileList("C:/") #parameter:노래 디렉토리
+    data = getFeatureAll("C:/", fileList)  #parameter:노래 디렉토리
+
+    data.to_csv("music_feature.csv", mode='w') # Convert DataFrame to CSV
+    """
+    
     # 따옴표 안에 원하는 노래 파일명 삽입
     similiarity("Jason Derulo - Kiss The Sky(0).wav")
